@@ -1,0 +1,1 @@
+ALTER TABLE "commit_analyses" ALTER COLUMN "risk_score" SET DATA TYPE real;
