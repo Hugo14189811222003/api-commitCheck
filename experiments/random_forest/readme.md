@@ -17,6 +17,17 @@ Features come from three sources:
 python mine_repos.py && python extract_features.py && python train.py &&  python predict_local.py [repo_path] [commit_hash]
 ```
 
+# Basic API usage
+
+```bash
+curl -X POST http://127.0.0.1:8000/score-commit \
+  -H "Content-Type: application/json" \
+  -d '{
+    "github_url": "https://github.com/OWNER/REPO",
+    "commit_sha": "a1b2c3d4e5f6g7h8i9j0"
+  }'
+```
+
 ---
 
 ## Setup
