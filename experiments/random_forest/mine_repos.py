@@ -24,6 +24,7 @@ import requests
 import pandas as pd
 from datetime import datetime
 from dotenv import load_dotenv
+import multiprocessing
 
 load_dotenv()
 
@@ -45,6 +46,11 @@ REPOS = [
     ("blockscout",    "frontend"),
     ("SillyTavern",   "SillyTavern"),
     ("journiv",       "journiv-app"),
+    ("cloudreve",     "frontend"),
+        ("GitbookIO",     "gitbook"),
+        ("pancakeswap",   "pancake-frontend"),
+        ("EmulatorJS",    "EmulatorJS"),
+            ("libre-tube",    "LibreTube"),
     # ("facebook",      "react"),
     # ("microsoft",     "vscode"),
     ("pallets",       "flask"),
@@ -440,8 +446,97 @@ def fetch_review_metadata(owner: str, repo: str, pr_number: int) -> dict:
 
 
 # ----------------------------------------------------------------
-# Timestamp helpers
+# Multiprocessing helper
 # ----------------------------------------------------------------
+
+def process_merge(owner: str, repo: str, repo_path: str, merge: dict, all_merges: list[dict], i: int) -> tuple[dict, list[dict]]:
+    pr_number   = merge["pr_number"]
+    merge_sha   = merge["sha"]
+    parent_main = merge["parent_main"]
+    parent_pr   = merge["parent_pr"]
+    merged_at   = merge["merged_at"]
+
+    # --- Diff stats ---
+    diff_stats = get_diff_stats(repo_path, parent_main, parent_pr)
+
+    # --- Commits ---
+    commits = get_commits_in_pr(repo_path, parent_main, parent_pr)
+
+    commit_hours = [c["commit_hour"] for c in commits]
+    total_churn = diff_stats["lines_added"] + diff_stats["lines_deleted"]
+
+    commit_rows_local = []
+    for c in commits:
+        commit_rows_local.append({
+            "repo":          f"{owner}/{repo}",
+            "pr_number":     f"{owner}/{repo}#{pr_number}",
+            **c,
+            "lines_added":   diff_stats["lines_added"],
+            "lines_deleted": diff_stats["lines_deleted"],
+        })
+
+    # --- Changed files ---
+    changed_files = get_changed_files(repo_path, parent_main, parent_pr)
+    subsystems    = get_subsystems(changed_files)
+
+    # --- Auto label ---
+    label = auto_label(repo_path, pr_number, merge_sha, merged_at, all_merges[i+1:])
+
+    # --- Review metadata (GitHub API, optional) ---
+    review_meta = fetch_review_metadata(owner, repo, pr_number)
+
+    # --- Time signals ---
+    merged_hour    = hour_of_git_timestamp(merged_at)
+    merged_weekday = parse_git_timestamp(merged_at).weekday()
+
+    pr_row = {
+        "repo":                  f"{owner}/{repo}",
+        "pr_number":             f"{owner}/{repo}#{pr_number}",
+        "merged_at":             merged_at,
+        "pr_merged_hour":        merged_hour,
+        "pr_merged_weekday":     merged_weekday,
+        "is_friday_merge":       int(merged_weekday == 4),
+
+        # Size
+        "lines_added":           diff_stats["lines_added"],
+        "lines_deleted":         diff_stats["lines_deleted"],
+        "changed_files":         diff_stats["files_changed"],
+        "total_churn":           total_churn,
+        "churn_ratio":           round(diff_stats["lines_added"] / (total_churn + 1), 3),
+
+        # Commit signals
+        "commit_count":          len(commits),
+        "unique_authors":        len(set(c["author_email"] for c in commits)),
+        "has_late_night_commit": int(any(c["is_late_night"] for c in commits)),
+        "earliest_commit_hour":  min(commit_hours) if commit_hours else -1,
+        "latest_commit_hour":    max(commit_hours) if commit_hours else -1,
+        "commit_hour_std":       round(pd.Series(commit_hours).std(), 2) if len(commit_hours) > 1 else 0.0,
+
+        # Diffusion
+        "subsystems_changed":    subsystems,
+
+        # Review (from GitHub API if available)
+        "reviewer_count":        review_meta["reviewer_count"],
+        "approvals_count":       review_meta["approvals_count"],
+        "pr_iteration_count":    review_meta["pr_iteration_count"],
+
+        # Context
+        "is_hotfix":             int(bool(re.search(
+            r"\b(hotfix|patch|fix)\b", merge["subject"], re.IGNORECASE
+        ))),
+
+        # AI usage — filled in manually later via ai_log.csv
+        "ai_used":               0,
+        "ai_tokens_in":          0,
+        "ai_tokens_out":         0,
+        "ai_agent_turns":        0,
+        "human_edit_ratio":      1.0,
+
+        # Label (auto-detected)
+        "label":                 label,
+    }
+
+    return pr_row, commit_rows_local
 
 def hour_of_git_timestamp(ts: str) -> int:
     """Extract hour from git log timestamp: '2023-04-12 14:32:01 +0000'"""
@@ -485,95 +580,12 @@ def mine_repo(owner: str, repo: str) -> tuple[list[dict], list[dict]]:
     pr_rows     = []
     commit_rows = []
 
-    for i, merge in enumerate(all_merges):
-        pr_number   = merge["pr_number"]
-        merge_sha   = merge["sha"]
-        parent_main = merge["parent_main"]
-        parent_pr   = merge["parent_pr"]
-        merged_at   = merge["merged_at"]
+    with multiprocessing.Pool() as pool:
+        results = pool.starmap(process_merge, [(owner, repo, repo_path, merge, all_merges, i) for i, merge in enumerate(all_merges)])
 
-        print(f"  [{i+1}/{len(all_merges)}] PR #{pr_number}...", end="\r")
-
-        # --- Diff stats ---
-        diff_stats = get_diff_stats(repo_path, parent_main, parent_pr)
-
-        # --- Commits ---
-        commits = get_commits_in_pr(repo_path, parent_main, parent_pr)
-
-        commit_hours = [c["commit_hour"] for c in commits]
-        la_sum = sum(diff_stats["lines_added"]   for _ in commits) if commits else 0
-        ld_sum = sum(diff_stats["lines_deleted"]  for _ in commits) if commits else 0
-        total_churn = diff_stats["lines_added"] + diff_stats["lines_deleted"]
-
-        for c in commits:
-            commit_rows.append({
-                "repo":          f"{owner}/{repo}",
-                "pr_number":     f"{owner}/{repo}#{pr_number}",
-                **c,
-                "lines_added":   diff_stats["lines_added"],
-                "lines_deleted": diff_stats["lines_deleted"],
-            })
-
-        # --- Changed files ---
-        changed_files = get_changed_files(repo_path, parent_main, parent_pr)
-        subsystems    = get_subsystems(changed_files)
-
-        # --- Auto label ---
-        label = auto_label(repo_path, pr_number, merge_sha, merged_at, all_merges[i+1:])
-
-        # --- Review metadata (GitHub API, optional) ---
-        review_meta = fetch_review_metadata(owner, repo, pr_number)
-
-        # --- Time signals ---
-        merged_hour    = hour_of_git_timestamp(merged_at)
-        merged_weekday = parse_git_timestamp(merged_at).weekday()
-
-        pr_rows.append({
-            "repo":                  f"{owner}/{repo}",
-            "pr_number":             f"{owner}/{repo}#{pr_number}",
-            "merged_at":             merged_at,
-            "pr_merged_hour":        merged_hour,
-            "pr_merged_weekday":     merged_weekday,
-            "is_friday_merge":       int(merged_weekday == 4),
-
-            # Size
-            "lines_added":           diff_stats["lines_added"],
-            "lines_deleted":         diff_stats["lines_deleted"],
-            "changed_files":         diff_stats["files_changed"],
-            "total_churn":           total_churn,
-            "churn_ratio":           round(diff_stats["lines_added"] / (total_churn + 1), 3),
-
-            # Commit signals
-            "commit_count":          len(commits),
-            "unique_authors":        len(set(c["author_email"] for c in commits)),
-            "has_late_night_commit": int(any(c["is_late_night"] for c in commits)),
-            "earliest_commit_hour":  min(commit_hours) if commit_hours else -1,
-            "latest_commit_hour":    max(commit_hours) if commit_hours else -1,
-            "commit_hour_std":       round(pd.Series(commit_hours).std(), 2) if len(commit_hours) > 1 else 0.0,
-
-            # Diffusion
-            "subsystems_changed":    subsystems,
-
-            # Review (from GitHub API if available)
-            "reviewer_count":        review_meta["reviewer_count"],
-            "approvals_count":       review_meta["approvals_count"],
-            "pr_iteration_count":    review_meta["pr_iteration_count"],
-
-            # Context
-            "is_hotfix":             int(bool(re.search(
-                r"\b(hotfix|patch|fix)\b", merge["subject"], re.IGNORECASE
-            ))),
-
-            # AI usage — filled in manually later via ai_log.csv
-            "ai_used":               0,
-            "ai_tokens_in":          0,
-            "ai_tokens_out":         0,
-            "ai_agent_turns":        0,
-            "human_edit_ratio":      1.0,
-
-            # Label (auto-detected)
-            "label":                 label,
-        })
+    for pr_row, commit_rows_local in results:
+        pr_rows.append(pr_row)
+        commit_rows.extend(commit_rows_local)
 
     buggy = sum(1 for p in pr_rows if p["label"] == 1)
     print(f"\n  Done. {len(pr_rows)} PRs — {buggy} buggy ({buggy/max(len(pr_rows),1)*100:.1f}%)")
@@ -602,12 +614,15 @@ def main():
     pr_df.to_csv(PR_OUTPUT, index=False)
     commit_df.to_csv(COMMIT_OUTPUT, index=False)
 
-    total_buggy = pr_df["label"].sum()
+    if len(pr_df) == 0:
+        total_buggy = 0
+    else:
+        total_buggy = pr_df["label"].sum() if "label" in pr_df.columns else 0
     print(f"\n{'='*50}")
     print(f"DONE")
     print(f"Total PRs:    {len(pr_df):,}")
     print(f"Total commits:{len(commit_df):,}")
-    print(f"Buggy PRs:    {int(total_buggy)} ({total_buggy/len(pr_df)*100:.1f}%)")
+    print(f"Buggy PRs:    {int(total_buggy)} ({total_buggy/len(pr_df)*100:.1f}%)" if len(pr_df) > 0 else "Buggy PRs:    0 (0.0%)")
     print(f"\nSaved to:")
     print(f"  {PR_OUTPUT}")
     print(f"  {COMMIT_OUTPUT}")
