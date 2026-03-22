@@ -1,0 +1,387 @@
+/* ============================================================
+   assets/css/login.css
+   Estilos exclusivos de la página de Login y verificación 2FA
+   ============================================================ */
+
+/* ── Contenedor principal ─────────────────────────────────── */
+.login-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 24px;
+  }
+  
+  /* ── Fondo: cuadrícula ────────────────────────────────────── */
+  .bg-grid {
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+  
+  /* ── Fondo: orbes de luz ──────────────────────────────────── */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    opacity: 0.35;
+  }
+  .orb-1 {
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(0,229,255,0.2), transparent 70%);
+    top: -100px; left: -100px;
+  }
+  .orb-2 {
+    width: 350px; height: 350px;
+    background: radial-gradient(circle, rgba(124,92,252,0.2), transparent 70%);
+    bottom: -80px; right: -80px;
+  }
+  
+  /* ── Columna central ──────────────────────────────────────── */
+  .login-container {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  
+  /* ── Header / Logo ────────────────────────────────────────── */
+  .login-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .logo-name {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+  }
+  .logo-name .accent { color: var(--accent-primary); }
+  .logo-tagline {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    margin-top: 2px;
+  }
+  
+  /* ── Card principal ───────────────────────────────────────── */
+  .login-card {
+    border-radius: var(--radius-lg);
+    padding: 32px;
+  }
+  
+  /* ── Indicador de pasos (01 → 02) ─────────────────────────── */
+  .step-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 28px;
+  }
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .step-num {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--bg-card);
+    border: 1px solid var(--border-default);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    transition: all 0.3s ease;
+  }
+  .step.active .step-num {
+    background: rgba(0,229,255,0.15);
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+  }
+  .step.done .step-num {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+    color: var(--bg-base);
+    font-size: 0.6rem;
+  }
+  .step-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+  .step.active .step-label { color: var(--text-secondary); }
+  
+  .step-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border-default);
+    transition: background 0.3s ease;
+  }
+  .step-line.active { background: var(--accent-primary); opacity: 0.5; }
+  
+  /* ── Cabecera del formulario ──────────────────────────────── */
+  .form-header {
+    margin-bottom: 24px;
+  }
+  .form-header h1 {
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  .form-header p {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+  
+  /* ── Grupos de campo ──────────────────────────────────────── */
+  .form-group {
+    margin-bottom: 16px;
+  }
+  .form-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .forgot-link {
+    font-size: 0.75rem;
+    color: var(--accent-primary);
+    text-decoration: none;
+    opacity: 0.8;
+    font-family: var(--font-sans);
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  
+  /* ── Input con ícono ──────────────────────────────────────── */
+  .input-wrapper {
+    position: relative;
+  }
+  .input-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+  .input-wrapper .input-field {
+    padding-left: 40px;
+  }
+  
+  /* ── Botón mostrar/ocultar contraseña ─────────────────────── */
+  .pw-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s;
+  }
+  .pw-toggle:hover { color: var(--text-secondary); }
+  
+  /* ── Utilidades inline ────────────────────────────────────── */
+  .w-full { width: 100%; }
+  .mt-4   { margin-top: 16px; }
+  
+  /* ── Mensaje de error ─────────────────────────────────────── */
+  .error-msg {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 12px;
+    background: rgba(255,71,87,0.1);
+    border: 1px solid rgba(255,71,87,0.25);
+    border-radius: var(--radius-sm);
+    color: var(--accent-danger);
+    font-size: 0.8rem;
+    margin-top: 8px;
+  }
+  
+  /* ── Divisor "acceso seguro con 2FA" ──────────────────────── */
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 20px 0 0;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-default);
+  }
+  
+  /* ── Badges de seguridad (TLS, AES, SOC) ─────────────────── */
+  .security-badges {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 14px;
+  }
+  .badge {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: var(--bg-base);
+    border: 1px solid var(--border-subtle);
+    border-radius: 99px;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+  
+  /* ── Ícono del paso 2FA ───────────────────────────────────── */
+  .otp-icon {
+    width: 56px; height: 56px;
+    background: rgba(0,229,255,0.08);
+    border: 1px solid rgba(0,229,255,0.2);
+    border-radius: var(--radius-md);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 16px;
+    animation: pulse-ring 2s infinite;
+  }
+  
+  /* ── Contenedor de los 6 inputs OTP ──────────────────────── */
+  .otp-container {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin: 24px 0 8px;
+  }
+  .otp-input {
+    width: 48px; height: 56px;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 1.4rem;
+    font-weight: 700;
+    background: var(--bg-base);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    outline: none;
+    transition: all 0.2s ease;
+    caret-color: var(--accent-primary);
+  }
+  .otp-input:focus {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px rgba(0,229,255,0.12);
+  }
+  .otp-input.filled {
+    border-color: rgba(0,229,255,0.4);
+    background: rgba(0,229,255,0.05);
+    color: var(--accent-primary);
+  }
+  .otp-input.error { border-color: var(--accent-danger); }
+  
+  /* ── Timer y botón reenviar ───────────────────────────────── */
+  .otp-timer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 12px;
+  }
+  .otp-timer strong { color: var(--text-secondary); }
+  
+  .resend-btn {
+    background: none;
+    border: none;
+    color: var(--accent-primary);
+    font-size: 0.8rem;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    padding: 0;
+    text-decoration: underline;
+  }
+  
+  /* ── Botón volver ─────────────────────────────────────────── */
+  .back-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 12px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 8px;
+    font-family: var(--font-sans);
+    transition: color 0.2s;
+  }
+  .back-btn:hover { color: var(--text-secondary); }
+  
+  /* ── Spinner de carga ─────────────────────────────────────── */
+  .spinner {
+    width: 14px; height: 14px;
+    border: 2px solid rgba(10,12,16,0.3);
+    border-top-color: var(--bg-base);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  
+  /* ── Footer ───────────────────────────────────────────────── */
+  .login-footer {
+    text-align: center;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+  }
+  .dot { opacity: 0.4; }
+  
+  /* ── Transición entre paso 1 y paso 2 ────────────────────── */
+  .slide-step-enter-active,
+  .slide-step-leave-active {
+    transition: all 0.3s ease;
+  }
+  .slide-step-enter-from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  .slide-step-leave-to {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
